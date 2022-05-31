@@ -16,6 +16,8 @@ public class Member {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id")
     private Team team;
+    @OneToOne(fetch = FetchType.LAZY, mappedBy = "member")
+    private Resume resume;
     public Member(String username) {
         this(username, 0);
     }
@@ -29,6 +31,16 @@ public class Member {
             changeTeam(team);
         }
     }
+    public Member(String username, int age, Team team, Resume resume) {
+        this.username = username;
+        this.age = age;
+        this.resume = resume;
+        if (team != null) {
+            changeTeam(team);
+        }
+    }
+
+
     public void changeTeam(Team team) {
         this.team = team;
         team.getMembers().add(this);

@@ -1,9 +1,6 @@
 package com.minyoung.querydslStudy;
 
-import com.minyoung.querydslStudy.domain.Member;
-import com.minyoung.querydslStudy.domain.QMember;
-import com.minyoung.querydslStudy.domain.QTeam;
-import com.minyoung.querydslStudy.domain.Team;
+import com.minyoung.querydslStudy.domain.*;
 import com.minyoung.querydslStudy.dto.MemberDto;
 import com.minyoung.querydslStudy.dto.QMemberDto;
 import com.minyoung.querydslStudy.dto.UserDto;
@@ -21,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
@@ -31,6 +29,7 @@ import javax.persistence.PersistenceUnit;
 import java.util.List;
 
 import static com.minyoung.querydslStudy.domain.QMember.*;
+import static com.minyoung.querydslStudy.domain.QResume.*;
 import static com.minyoung.querydslStudy.domain.QTeam.team;
 import static com.querydsl.jpa.JPAExpressions.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -50,6 +49,8 @@ public class QuerydslBasicTest {
         Team teamB = new Team("teamB");
         em.persist(teamA);
         em.persist(teamB);
+
+
         Member member1 = new Member("member1", 10, teamA);
         Member member2 = new Member("member2", 20, teamA);
         Member member3 = new Member("member3", 30, teamB);
@@ -58,7 +59,33 @@ public class QuerydslBasicTest {
         em.persist(member2);
         em.persist(member3);
         em.persist(member4);
+
+
+        Resume resume1 = new Resume("aa",member1);
+        Resume resume2 = new Resume("aa",member2);
+        Resume resume3 = new Resume("bb",member3);
+        Resume resume4 = new Resume("bb",member4);
+
+        em.persist(resume1);
+        em.persist(resume2);
+        em.persist(resume3);
+        em.persist(resume4);
     }
+    @Test
+    public void joinJoinTest() {
+        List<Member> result = queryFactory
+                .select(member)
+                .from(member)
+                .join(member.team, team)
+                .join(member.resume, resume)
+                .where(member.team.name.eq("teamA"), member.resume.content.eq("aa"))
+                .fetch();
+        System.out.println(result.size());
+        for(Member member : result) {
+            System.out.println(member.getResume().getContent());
+        }
+    }
+
 
     @Test
     public void startQuerydsl() {
@@ -602,5 +629,51 @@ public class QuerydslBasicTest {
     private BooleanExpression allEq(String usernameCond, Integer ageCond) {
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
+
+    //bulk
+    // 벌크 연산시 조심해야할점 영속성컨테스트는 안바뀜 그래서 cache에는 업데이트가 안됨됨 (em.flush(), em.clear()를 통해 해결)
+    // @Test
+    public void bulkUpdate() {
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원원")
+                .where(member.age.lt(28))
+                .execute();
+
+
+    }
+    @Test
+    public void bulkAdd() {
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1))
+                .execute();
+    }
+
+    @Test
+    public void bulkDelete() {
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+    @Test
+    public void sqlFunc1() {
+        String result = queryFactory
+                .select(Expressions.stringTemplate("function('replace', {0}, {1}, {2})", member.username, "member", "M"))
+                .from(member)
+                .fetchFirst();
+    }
+
+    @Test
+    public void sqlFunc2() {
+        String result = queryFactory
+                .select(member.username)
+                .from(member)
+                .where(member.username.eq(Expressions.stringTemplate("function('lower', {0})",
+                        member.username))).fetchFirst();
+    }
+
 
 }
